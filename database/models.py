@@ -1,6 +1,8 @@
 from . import Base
 from sqlalchemy.orm import relationship
 from sqlalchemy import String, Boolean, DateTime, Integer, Column, ForeignKey
+import sqlite3
+from datetime import datetime, timedelta
 
 class User(Base):
     __tablename__ = 'Пользователь'
@@ -123,3 +125,73 @@ class Guest(Base):
     residential_address = Column('Адрес_проживания', String)
     roommates = relationship("Roommate", back_populates="guest")
     reservations = relationship("Reservation", back_populates='guest')
+
+def update_room_status():
+    """Обновляет статус номеров на основе текущих бронирований"""
+    from . import Session
+    session = Session()
+    
+    try:
+        # Получаем текущую дату и время
+        current_datetime = datetime.now()
+        
+        # Сначала устанавливаем все номера как свободные
+        session.query(Room).update({"room_status": "Свободен"})
+        
+        # Находим все активные бронирования, используя поле check_in вместо reservation_date
+        active_reservations = session.query(Reservation).filter(
+            Reservation.check_in <= current_datetime,
+            Reservation.check_out >= current_datetime
+        ).all()
+        
+        print(f"Текущее время: {current_datetime}")
+        print(f"Найдено активных броней: {len(active_reservations)}")
+        
+        # Обновляем статусы номеров с активными бронированиями
+        for reservation in active_reservations:
+            if reservation.room:
+                print(f"Обновляем номер {reservation.room.number}:")
+                print(f"  Заселение: {reservation.check_in}")
+                print(f"  Выселение: {reservation.check_out}")
+                reservation.room.room_status = "Занят"
+                
+        session.commit()
+        
+    except Exception as e:
+        print(f"Ошибка при обновлении статуса номеров: {e}")
+        session.rollback()
+    finally:
+        session.close()
+
+def update_cleaning_status():
+    """Обновляет статус уборки номеров"""
+    from . import Session
+    session = Session()
+    
+    try:
+        # Получаем текущую дату
+        current_date = datetime.now()
+        
+        # Получаем все номера
+        rooms = session.query(Room).all()
+        
+        for room in rooms:
+            # Получаем последнюю уборку для номера
+            last_cleaning = session.query(Cleaning)\
+                .filter(Cleaning.floor_id == room.floor_id)\
+                .order_by(Cleaning.date.desc())\
+                .first()
+            
+            # Если уборки не было сегодня, помечаем номер как требующий уборки
+            if not last_cleaning or \
+               last_cleaning.date.date() < current_date.date():
+                room.cleaning_status = "Требует уборки"
+                print(f"Номер {room.number} требует уборки")
+        
+        session.commit()
+        
+    except Exception as e:
+        print(f"Ошибка при обновлении статуса уборки: {e}")
+        session.rollback()
+    finally:
+        session.close()

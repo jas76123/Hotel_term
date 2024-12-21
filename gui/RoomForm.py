@@ -55,22 +55,6 @@ class RoomForm(QWidget):
         description_layout.addWidget(self.description)
         layout.addLayout(description_layout)
 
-        # Статус номера
-        status_layout = QHBoxLayout()
-        self.room_status = QLineEdit()
-        self.room_status.setText("Свободен")
-        status_layout.addWidget(QLabel("Статус номера:"))
-        status_layout.addWidget(self.room_status)
-        layout.addLayout(status_layout)
-
-        # Статус уборки
-        cleaning_layout = QHBoxLayout()
-        self.cleaning_status = QLineEdit()
-        self.cleaning_status.setText("Убран")
-        cleaning_layout.addWidget(QLabel("Статус уборки:"))
-        cleaning_layout.addWidget(self.cleaning_status)
-        layout.addLayout(cleaning_layout)
-
         # Кнопки
         buttons_layout = QHBoxLayout()
         
@@ -120,22 +104,25 @@ class RoomForm(QWidget):
             if room:
                 room.floor_id = floor.id
                 room.category_id = category.id
-                room.room_status = self.room_status.text()
-                room.cleaning_status = self.cleaning_status.text()
             else:
                 room = Room(
                     number=self.room_number.value(),
                     floor_id=floor.id,
                     category_id=category.id,
-                    room_status=self.room_status.text(),
-                    cleaning_status=self.cleaning_status.text()
+                    room_status='Свободен',  # Устанавливаем начальный статус
+                    cleaning_status='Убран'   # Начальный статус уборки
                 )
                 self.session.add(room)
 
             self.session.commit()
+            
+            # Обновляем статусы номеров после сохранения
+            from database.models import update_room_status
+            update_room_status()
+            
             QMessageBox.information(self, "Успех", "Номер успешно сохранен")
             self.close()
 
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибк�� при сохранении номера: {str(e)}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при сохранении номера: {str(e)}")
             self.session.rollback() 

@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication, QLineEdit, QWidget, QVBoxLayout, QPushButton, QMessageBox
 from .AdminWindow import AdminWindow
+from .MaidWindow import MaidWindow
 
 
 class LoginForm(QWidget):
@@ -34,13 +35,17 @@ class LoginForm(QWidget):
         result = self.Service.login(login, password)
         
         if result == "Всё гуд":
-            # Проверяем, является ли пользователь администратором
             user = self.Service.get_current_user()
-            if user and user.role.name == "Администратор":
-                self.admin_window = AdminWindow()
-                self.admin_window.show()
-                self.close()
-            else:
-                QMessageBox.information(self, "", "Доступ запрещен")
+            if user:
+                if user.role.name == "Администратор":
+                    self.admin_window = AdminWindow()
+                    self.admin_window.show()
+                    self.close()
+                elif user.role.name == "Горничная":
+                    self.maid_window = MaidWindow(user.id)
+                    self.maid_window.show()
+                    self.close()
+                else:
+                    QMessageBox.information(self, "", "Неизвестная роль")
         else:
             QMessageBox.information(self, "", result)
